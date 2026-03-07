@@ -1,4 +1,4 @@
-const BASE = '';
+export const BASE = '';
 
 export async function fetchOverview(params = {}) {
   const q = new URLSearchParams();

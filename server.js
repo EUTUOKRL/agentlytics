@@ -89,6 +89,15 @@ app.get('/api/deep-analytics', (req, res) => {
   }
 });
 
+app.get('/api/dashboard-stats', (req, res) => {
+  try {
+    const opts = { editor: req.query.editor || null };
+    res.json(cache.getCachedDashboardStats(opts));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/tool-calls', (req, res) => {
   try {
     const name = req.query.name;

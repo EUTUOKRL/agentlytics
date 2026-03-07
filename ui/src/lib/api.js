@@ -61,6 +61,14 @@ export function refetchAgents(onProgress) {
   });
 }
 
+export async function fetchDashboardStats(params = {}) {
+  const q = new URLSearchParams();
+  if (params.editor) q.set('editor', params.editor);
+  const qs = q.toString();
+  const res = await fetch(`${BASE}/api/dashboard-stats${qs ? '?' + qs : ''}`);
+  return res.json();
+}
+
 export async function fetchToolCalls(name, opts = {}) {
   const q = new URLSearchParams({ name });
   if (opts.limit) q.set('limit', opts.limit);

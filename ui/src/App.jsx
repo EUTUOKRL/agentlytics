@@ -40,7 +40,7 @@ export default function App() {
   return (
     <div className="min-h-screen">
       <header className="border-b px-4 py-1.5 flex items-center gap-3 sticky top-0 z-50 backdrop-blur-xl" style={{ borderColor: 'var(--c-border)', background: 'var(--c-header)' }}>
-        <span className="text-xs font-bold tracking-tight" style={{ color: 'var(--c-white)' }}>agentlytics</span>
+        <span className="text-xs font-bold tracking-tight" style={{ color: 'var(--c-white)' }}>npx agentlytics</span>
         <nav className="flex gap-0.5 ml-2">
           {nav.map(({ to, icon: Icon, label }) => (
             <NavLink

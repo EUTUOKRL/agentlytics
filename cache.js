@@ -816,5 +816,6 @@ module.exports = {
   getCachedToolCalls,
   resetAndRescan,
   resetAndRescanAsync,
+  getCachedDashboardStats,
   getDb,
 };

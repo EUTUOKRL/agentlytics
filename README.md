@@ -83,13 +83,20 @@ Relay enables multi-user context sharing across a team. One person starts a rela
 npx agentlytics --relay
 ```
 
+Optionally protect with a password:
+
+```bash
+RELAY_PASSWORD=secret npx agentlytics --relay
+```
+
 This starts a relay server on port `4638` and prints the join command and MCP endpoint:
 
 ```
   ⚡ Agentlytics Relay
 
   Share this command with your team:
-    npx agentlytics --join 192.168.1.16:4638 --username <name>
+    cd /path/to/project
+    npx agentlytics --join 192.168.1.16:4638
 
   MCP server endpoint (add to your AI client):
     http://192.168.1.16:4638/mcp
@@ -98,8 +105,17 @@ This starts a relay server on port `4638` and prints the join command and MCP en
 ### Join a relay
 
 ```bash
-npx agentlytics --join <host:port> --username <name>
+cd /path/to/your-project
+npx agentlytics --join <host:port>
 ```
+
+If the relay is password-protected:
+
+```bash
+RELAY_PASSWORD=secret npx agentlytics --join <host:port>
+```
+
+Username is auto-detected from `git config user.email`. You can override it with `--username <name>`.
 
 You'll be prompted to select which projects to share. The client then syncs session data to the relay every 30 seconds.
 
@@ -127,7 +143,7 @@ Example query to your AI: *"What did alice do in auth.js?"*
 | `GET /relay/session/:chatId` | Full session detail |
 | `POST /relay/sync` | Receives data from join clients |
 
-> Relay is designed for trusted local networks. No authentication is required in v1.
+> Relay is designed for trusted local networks. Set `RELAY_PASSWORD` env on both server and clients to enable password protection.
 
 ## How It Works
 

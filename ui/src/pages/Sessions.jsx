@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Search, Filter, List, FolderOpen, ChevronDown, ChevronRight, X } from 'lucide-react'
+import { Search, Filter, List, FolderOpen, ChevronDown, ChevronRight, X, AlertTriangle } from 'lucide-react'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler } from 'chart.js'
 import { Line } from 'react-chartjs-2'
 import { fetchChats } from '../lib/api'
@@ -223,6 +223,19 @@ export default function Sessions({ overview }) {
       <td className="py-2.5 px-4 font-medium truncate max-w-[300px]" style={{ color: 'var(--c-white)' }}>
         {c.name || <span style={{ color: 'var(--c-text3)' }}>(untitled)</span>}
         {c.encrypted && <span className="ml-2 text-[10px] text-yellow-500/60">locked</span>}
+        {c.bubbleCount >= 200 && (
+          <span
+            className="ml-2 inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-sm"
+            style={{
+              color: c.bubbleCount >= 500 ? '#ef4444' : '#f59e0b',
+              background: c.bubbleCount >= 500 ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)',
+            }}
+            title={`${c.bubbleCount} messages — large context may degrade AI performance`}
+          >
+            <AlertTriangle size={9} />
+            {c.bubbleCount >= 500 ? 'context bloat' : 'large context'}
+          </span>
+        )}
       </td>
       {!groupByProject && (
         <td className="py-2.5 px-4 truncate max-w-[200px] text-xs" style={{ color: 'var(--c-text2)' }} title={c.folder}>

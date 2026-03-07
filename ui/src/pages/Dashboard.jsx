@@ -226,7 +226,7 @@ export default function Dashboard({ overview }) {
 
       {/* Activity Heatmap */}
       <div className="card p-3">
-        <SectionTitle>activity</SectionTitle>
+        <SectionTitle>agentic coding activity</SectionTitle>
         {dailyData ? <ActivityHeatmap dailyData={dailyData} /> : <div className="text-[10px]" style={{ color: 'var(--c-text3)' }}>loading...</div>}
       </div>
 

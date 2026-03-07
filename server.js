@@ -112,6 +112,42 @@ app.get('/api/tool-calls', (req, res) => {
   }
 });
 
+app.post('/api/query', (req, res) => {
+  try {
+    const { sql } = req.body;
+    if (!sql || typeof sql !== 'string') return res.status(400).json({ error: 'sql string required' });
+    // Only allow SELECT / PRAGMA / EXPLAIN / WITH statements
+    const trimmed = sql.trim().replace(/^--.*$/gm, '').trim();
+    const first = trimmed.split(/\s+/)[0].toUpperCase();
+    if (!['SELECT', 'PRAGMA', 'EXPLAIN', 'WITH'].includes(first)) {
+      return res.status(403).json({ error: 'Only SELECT queries are allowed' });
+    }
+    const db = cache.getDb();
+    if (!db) return res.status(500).json({ error: 'Database not initialized' });
+    const stmt = db.prepare(sql);
+    const rows = stmt.all();
+    const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+    res.json({ columns, rows, count: rows.length });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/api/schema', (req, res) => {
+  try {
+    const db = cache.getDb();
+    if (!db) return res.status(500).json({ error: 'Database not initialized' });
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all();
+    const schema = {};
+    for (const { name } of tables) {
+      schema[name] = db.prepare(`PRAGMA table_info(${name})`).all();
+    }
+    res.json({ tables: tables.map(t => t.name), schema });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/refetch', async (req, res) => {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',

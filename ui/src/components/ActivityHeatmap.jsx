@@ -38,11 +38,11 @@ export default function ActivityHeatmap({ dailyData }) {
       if (d.total > maxCount) maxCount = d.total
     }
 
-    // End on today, start 52 weeks back
+    // End on Saturday of the current week, start WEEK_COLS-1 weeks before
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const start = new Date(today)
-    start.setDate(start.getDate() - (WEEK_COLS * 7 - 1) - start.getDay())
+    start.setDate(start.getDate() - start.getDay() - (WEEK_COLS - 1) * 7)
 
     const weeks = []
     const months = []

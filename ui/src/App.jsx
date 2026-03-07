@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, NavLink } from 'react-router-dom'
-import { Activity, BarChart3, GitCompare, MessageSquare, FolderOpen, Sun, Moon, RefreshCw, AlertTriangle, Github, Terminal } from 'lucide-react'
+import { Activity, BarChart3, GitCompare, MessageSquare, FolderOpen, Sun, Moon, RefreshCw, AlertTriangle, Github, Terminal, Database } from 'lucide-react'
 import { fetchOverview, refetchAgents } from './lib/api'
 import { useTheme } from './lib/theme'
 import Dashboard from './pages/Dashboard'
@@ -9,6 +9,7 @@ import DeepAnalysis from './pages/DeepAnalysis'
 import Compare from './pages/Compare'
 import ChatDetail from './pages/ChatDetail'
 import Projects from './pages/Projects'
+import SqlViewer from './pages/SqlViewer'
 
 export default function App() {
   const [overview, setOverview] = useState(null)
@@ -35,6 +36,7 @@ export default function App() {
     { to: '/sessions', icon: MessageSquare, label: 'Sessions' },
     { to: '/analysis', icon: BarChart3, label: 'Analysis' },
     { to: '/compare', icon: GitCompare, label: 'Compare' },
+    { to: '/sql', icon: Database, label: 'SQL' },
   ]
 
   return (
@@ -100,6 +102,7 @@ export default function App() {
           <Route path="/sessions/:id" element={<ChatDetail />} />
           <Route path="/analysis" element={<DeepAnalysis overview={overview} />} />
           <Route path="/compare" element={<Compare overview={overview} />} />
+          <Route path="/sql" element={<SqlViewer />} />
         </Routes>
       </main>
 

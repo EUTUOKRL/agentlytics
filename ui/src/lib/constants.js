@@ -9,6 +9,8 @@ export const EDITOR_COLORS = {
   'vscode-insiders': '#60a5fa',
   'zed': '#10b981',
   'opencode': '#ec4899',
+  'gemini-cli': '#4285f4',
+  'copilot-cli': '#8957e5',
 };
 
 export const EDITOR_LABELS = {
@@ -22,6 +24,8 @@ export const EDITOR_LABELS = {
   'vscode-insiders': 'VS Code Insiders',
   'zed': 'Zed',
   'opencode': 'OpenCode',
+  'gemini-cli': 'Gemini CLI',
+  'copilot-cli': 'Copilot CLI',
 };
 
 export function editorColor(src) {

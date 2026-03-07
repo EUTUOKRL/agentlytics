@@ -69,6 +69,20 @@ export async function fetchDashboardStats(params = {}) {
   return res.json();
 }
 
+export async function executeQuery(sql) {
+  const res = await fetch(`${BASE}/api/query`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sql }),
+  });
+  return res.json();
+}
+
+export async function fetchSchema() {
+  const res = await fetch(`${BASE}/api/schema`);
+  return res.json();
+}
+
 export async function fetchToolCalls(name, opts = {}) {
   const q = new URLSearchParams({ name });
   if (opts.limit) q.set('limit', opts.limit);

@@ -3,8 +3,8 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearSca
 import { Doughnut, Bar } from 'react-chartjs-2'
 import { Search, MessageSquare, Wrench, Cpu, FolderOpen, Calendar, ArrowRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { fetchProjects } from '../lib/api'
-import { editorColor, editorLabel, formatNumber, formatDate, dateRangeToApiParams } from '../lib/constants'
+import { fetchProjects, fetchCosts } from '../lib/api'
+import { editorColor, editorLabel, formatNumber, formatCost, formatDate, dateRangeToApiParams } from '../lib/constants'
 import { useTheme } from '../lib/theme'
 import KpiCard from '../components/KpiCard'
 import EditorIcon from '../components/EditorIcon'
@@ -25,11 +25,16 @@ export default function Projects({ overview }) {
   const [search, setSearch] = useState('')
   const [editorFilter, setEditorFilter] = useState('')
   const [dateRange, setDateRange] = useState(null)
+  const [costs, setCosts] = useState(null)
   const navigate = useNavigate()
   const editors = overview?.editors || []
 
   useEffect(() => {
-    fetchProjects(dateRangeToApiParams(dateRange)).then(setProjects)
+    const dateParams = dateRangeToApiParams(dateRange)
+    Promise.all([
+      fetchProjects(dateParams),
+      fetchCosts(dateParams),
+    ]).then(([p, c]) => { setProjects(p); setCosts(c) })
   }, [dateRange])
 
   if (!projects) return <div className="text-sm py-12 text-center" style={{ color: 'var(--c-text2)' }}>loading projects...</div>
@@ -64,6 +69,7 @@ export default function Projects({ overview }) {
         <KpiCard label="sessions" value={formatNumber(totalSessions)} onClick={() => navigate('/sessions')} />
         <KpiCard label="messages" value={formatNumber(totalMessages)} />
         <KpiCard label="tokens" value={formatNumber(totalTokens)} />
+        <KpiCard label="est. cost" value={costs && costs.totalCost > 0 ? formatCost(costs.totalCost) : '\u2014'} />
       </div>
 
       {/* Charts row */}

@@ -3,8 +3,8 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, FolderOpen, Calendar, MessageSquare, Wrench, Cpu, Zap, AlertTriangle } from 'lucide-react'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js'
 import { Doughnut, Bar } from 'react-chartjs-2'
-import { fetchProjects, fetchChats } from '../lib/api'
-import { editorColor, editorLabel, formatNumber, formatDate } from '../lib/constants'
+import { fetchProjects, fetchChats, fetchCosts } from '../lib/api'
+import { editorColor, editorLabel, formatNumber, formatDate, formatCost } from '../lib/constants'
 import { useTheme } from '../lib/theme'
 import KpiCard from '../components/KpiCard'
 import EditorIcon from '../components/EditorIcon'
@@ -31,6 +31,7 @@ export default function ProjectDetail() {
   const [loading, setLoading] = useState(true)
   const [chatSearch, setChatSearch] = useState('')
   const [selectedChatId, setSelectedChatId] = useState(null)
+  const [costs, setCosts] = useState(null)
   const [enabledEditors, setEnabledEditors] = useState(null)
 
   useEffect(() => {
@@ -39,10 +40,12 @@ export default function ProjectDetail() {
     Promise.all([
       fetchProjects(),
       fetchChats({ folder, limit: 1000 }),
-    ]).then(([projects, chatData]) => {
+      fetchCosts({ folder }),
+    ]).then(([projects, chatData, costData]) => {
       const match = projects.find(p => p.folder === folder)
       setProject(match || null)
       setChats(chatData.chats || [])
+      setCosts(costData)
       if (match) setEnabledEditors(new Set(Object.keys(match.editors)))
       setLoading(false)
     })
@@ -144,11 +147,12 @@ export default function ProjectDetail() {
         <KpiCard label="sessions" value={displaySessions} sub={!allEnabled ? 'filtered' : ''} />
         <KpiCard label="messages" value={formatNumber(project.totalMessages)} sub={`${avgMsgs} avg/session`} />
         <KpiCard label="tool calls" value={formatNumber(project.totalToolCalls)} sub={<span className="flex items-center gap-0.5"><Wrench size={8} /> invocations</span>} />
-        <KpiCard label="tokens" value={formatNumber(totalTok)} sub={`${outputRatio}× out/in`} />
+        <KpiCard label="tokens" value={formatNumber(totalTok)} sub={`${outputRatio}\u00d7 out/in`} />
         {project.totalCacheRead > 0 && (
           <KpiCard label="cache read" value={formatNumber(project.totalCacheRead)} sub={`write: ${formatNumber(project.totalCacheWrite)}`} />
         )}
         <KpiCard label="you wrote" value={formatNumber(project.totalUserChars)} sub={`AI: ${formatNumber(project.totalAssistantChars)}`} />
+        <KpiCard label="est. cost" value={costs && costs.totalCost > 0 ? formatCost(costs.totalCost) : '\u2014'} sub={costs && costs.byModel.length > 0 ? `${costs.byModel.length} model${costs.byModel.length !== 1 ? 's' : ''}` : undefined} />
       </div>
 
       {/* Charts row */}

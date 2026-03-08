@@ -7,7 +7,7 @@ const { calculateCost, getModelPricing, normalizeModelName } = require('./pricin
 
 const CACHE_DIR = path.join(os.homedir(), '.agentlytics');
 const CACHE_DB = path.join(CACHE_DIR, 'cache.db');
-const SCHEMA_VERSION = 3; // bump this when schema changes to auto-revalidate
+const SCHEMA_VERSION = 4; // bump this when schema changes to auto-revalidate
 
 let db = null;
 
@@ -1111,6 +1111,152 @@ function getCostBreakdown(opts = {}) {
   return estimateCosts(whereClause, params);
 }
 
+function getCostAnalytics(opts = {}) {
+  const conditions = [];
+  const params = [];
+  if (opts.editor) { conditions.push('c.source LIKE ?'); params.push(`%${opts.editor}%`); }
+  if (opts.dateFrom) { conditions.push('COALESCE(c.last_updated_at, c.created_at) >= ?'); params.push(opts.dateFrom); }
+  if (opts.dateTo) { conditions.push('COALESCE(c.last_updated_at, c.created_at) <= ?'); params.push(opts.dateTo); }
+  const whereAnd = conditions.length > 0 ? ' AND ' + conditions.join(' AND ') : '';
+
+  // Overall cost breakdown by model
+  const overall = getCostBreakdown(opts);
+
+  // Cost by editor: get costs per source
+  const editorRows = db.prepare(`
+    SELECT DISTINCT c.source FROM chats c WHERE c.source IS NOT NULL${whereAnd}
+  `).all(...params);
+  const byEditor = [];
+  for (const { source } of editorRows) {
+    const editorOpts = { ...opts, editor: source };
+    const ec = getCostBreakdown(editorOpts);
+    if (ec.totalCost > 0) {
+      byEditor.push({ editor: source, cost: ec.totalCost, models: ec.byModel.length });
+    }
+  }
+  byEditor.sort((a, b) => b.cost - a.cost);
+
+  // Cost by project (top 20)
+  const projectRows = db.prepare(`
+    SELECT c.folder, COUNT(*) as sessions FROM chats c
+    WHERE c.folder IS NOT NULL${whereAnd}
+    GROUP BY c.folder ORDER BY sessions DESC LIMIT 30
+  `).all(...params);
+  const byProject = [];
+  for (const { folder } of projectRows) {
+    const pc = getCostBreakdown({ ...opts, folder });
+    if (pc.totalCost > 0) {
+      byProject.push({ folder, name: folder.split('/').pop(), cost: pc.totalCost });
+    }
+  }
+  byProject.sort((a, b) => b.cost - a.cost);
+
+  // Monthly trend
+  const monthRows = db.prepare(`
+    SELECT
+      substr(date(COALESCE(c.last_updated_at, c.created_at)/1000, 'unixepoch'), 1, 7) as month,
+      c.id, c.source,
+      cs.models AS _models,
+      cs.total_input_tokens AS inTok, cs.total_output_tokens AS outTok,
+      cs.total_cache_read AS cacheR, cs.total_cache_write AS cacheW,
+      cs.total_user_chars AS uChars, cs.total_assistant_chars AS aChars
+    FROM chats c LEFT JOIN chat_stats cs ON cs.chat_id = c.id
+    WHERE (c.last_updated_at IS NOT NULL OR c.created_at IS NOT NULL)${whereAnd}
+    ORDER BY month
+  `).all(...params);
+  const monthCosts = {};
+  for (const r of monthRows) {
+    if (!r.month) continue;
+    let topModel = null;
+    try {
+      const models = JSON.parse(r._models || '[]');
+      if (models.length > 0) {
+        const freq = {};
+        for (const m of models) freq[m] = (freq[m] || 0) + 1;
+        topModel = Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0];
+      }
+    } catch {}
+    if (!topModel) continue;
+    let inTok = r.inTok || 0, outTok = r.outTok || 0;
+    if (inTok === 0 && outTok === 0 && ((r.uChars || 0) > 0 || (r.aChars || 0) > 0)) {
+      inTok = Math.round((r.uChars || 0) / 4);
+      outTok = Math.round((r.aChars || 0) / 4);
+    }
+    const cost = calculateCost(topModel, inTok, outTok, r.cacheR || 0, r.cacheW || 0) || 0;
+    if (!monthCosts[r.month]) monthCosts[r.month] = { cost: 0, sessions: 0 };
+    monthCosts[r.month].cost += cost;
+    monthCosts[r.month].sessions++;
+  }
+  const monthly = Object.entries(monthCosts).sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([month, d]) => ({ month, cost: Math.round(d.cost * 100) / 100, sessions: d.sessions }));
+
+  // Top expensive sessions
+  const sessionRows = db.prepare(`
+    SELECT c.id, c.source, c.name, c.folder, c.last_updated_at, c.created_at,
+      cs.models AS _models,
+      cs.total_input_tokens AS inTok, cs.total_output_tokens AS outTok,
+      cs.total_cache_read AS cacheR, cs.total_cache_write AS cacheW,
+      cs.total_user_chars AS uChars, cs.total_assistant_chars AS aChars,
+      cs.total_messages AS msgs
+    FROM chats c LEFT JOIN chat_stats cs ON cs.chat_id = c.id
+    WHERE 1=1${whereAnd}
+  `).all(...params);
+  const sessionCosts = [];
+  for (const r of sessionRows) {
+    let topModel = null;
+    try {
+      const models = JSON.parse(r._models || '[]');
+      if (models.length > 0) {
+        const freq = {};
+        for (const m of models) freq[m] = (freq[m] || 0) + 1;
+        topModel = Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0];
+      }
+    } catch {}
+    if (!topModel) continue;
+    let inTok = r.inTok || 0, outTok = r.outTok || 0;
+    if (inTok === 0 && outTok === 0 && ((r.uChars || 0) > 0 || (r.aChars || 0) > 0)) {
+      inTok = Math.round((r.uChars || 0) / 4);
+      outTok = Math.round((r.aChars || 0) / 4);
+    }
+    const cost = calculateCost(topModel, inTok, outTok, r.cacheR || 0, r.cacheW || 0) || 0;
+    if (cost > 0) {
+      sessionCosts.push({
+        id: r.id, source: r.source, name: r.name, folder: r.folder,
+        model: normalizeModelName(topModel) || topModel,
+        cost, messages: r.msgs || 0,
+        lastUpdatedAt: r.last_updated_at || r.created_at,
+      });
+    }
+  }
+  sessionCosts.sort((a, b) => b.cost - a.cost);
+
+  // Summary stats
+  const totalSessions = sessionCosts.length;
+  const avgPerSession = totalSessions > 0 ? overall.totalCost / totalSessions : 0;
+  const totalDays = monthly.length > 0 ? (() => {
+    const first = new Date(monthly[0].month + '-01');
+    const last = new Date(monthly[monthly.length - 1].month + '-01');
+    return Math.max(1, Math.ceil((last - first) / 86400000) + 30);
+  })() : 1;
+  const avgPerDay = overall.totalCost / totalDays;
+
+  return {
+    totalCost: overall.totalCost,
+    byModel: overall.byModel,
+    unknownModels: overall.unknownModels,
+    byEditor,
+    byProject: byProject.slice(0, 20),
+    monthly,
+    topSessions: sessionCosts.slice(0, 50),
+    summary: {
+      totalSessions,
+      avgPerSession: Math.round(avgPerSession * 100) / 100,
+      avgPerDay: Math.round(avgPerDay * 100) / 100,
+      totalDays,
+    },
+  };
+}
+
 function getDb() { return db; }
 
 module.exports = {
@@ -1128,5 +1274,6 @@ module.exports = {
   resetAndRescanAsync,
   getCachedDashboardStats,
   getCostBreakdown,
+  getCostAnalytics,
   getDb,
 };

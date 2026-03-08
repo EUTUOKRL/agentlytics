@@ -160,6 +160,18 @@ app.get('/api/dashboard-stats', (req, res) => {
   }
 });
 
+app.get('/api/cost-analytics', (req, res) => {
+  try {
+    const opts = {
+      editor: req.query.editor || null,
+      ...parseDateOpts(req.query),
+    };
+    res.json(cache.getCostAnalytics(opts));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/costs', (req, res) => {
   try {
     const opts = {

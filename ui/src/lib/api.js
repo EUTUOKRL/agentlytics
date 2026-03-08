@@ -127,6 +127,15 @@ export async function fetchDashboardStats(params = {}) {
   return res.json();
 }
 
+export async function fetchCostAnalytics(params = {}) {
+  const q = new URLSearchParams();
+  if (params.editor) q.set('editor', params.editor);
+  appendDateParams(q, params);
+  const qs = q.toString();
+  const res = await fetch(`${BASE}/api/cost-analytics${qs ? '?' + qs : ''}`);
+  return res.json();
+}
+
 export async function fetchCosts(params = {}) {
   const q = new URLSearchParams();
   if (params.editor) q.set('editor', params.editor);

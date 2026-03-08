@@ -3,6 +3,7 @@ const { execSync } = require('child_process');
 // Windsurf-family variants: Windsurf, Antigravity
 const VARIANTS = [
   { id: 'windsurf', matchKey: 'ide', matchVal: 'windsurf', https: false },
+  { id: 'windsurf-next', matchKey: 'ide', matchVal: 'windsurf-next', https: false },
   { id: 'antigravity', matchKey: 'appDataDir', matchVal: 'antigravity', https: true },
 ];
 
@@ -205,7 +206,7 @@ function callRpc(port, csrf, method, body, isHttps = false, extCsrf = null, useM
 // ============================================================
 
 const name = 'windsurf';
-const sources = ['windsurf', 'antigravity'];
+const sources = ['windsurf', 'windsurf-next', 'antigravity'];
 
 function getChats() {
   const chats = [];

@@ -927,9 +927,30 @@ function getUsage() {
   };
 }
 
-function resetCache() { _lsCache = null; _lsCacheCheckedAt = 0; _modelMap = null; }
+function resetCache() { _lsCache = null; _lsCacheCheckedAt = 0; _modelMap = null; _sessionFolderMap = null; }
 
 const labels = { 'antigravity': 'Antigravity' };
+
+// Cache session→folder mapping so we only build it once per process
+let _sessionFolderMap = null;
+function getSessionFolderMap() {
+  if (_sessionFolderMap) return _sessionFolderMap;
+  _sessionFolderMap = new Map();
+  try {
+    const chats = getChats();
+    for (const chat of chats) {
+      if (chat.composerId && chat.folder) {
+        _sessionFolderMap.set(chat.composerId, chat.folder);
+      }
+    }
+  } catch { /* skip */ }
+  return _sessionFolderMap;
+}
+
+function normalizePath(p) {
+  if (!p) return p;
+  return p.replace(/\/+$/, '').replace(/^file:\/\//, '');
+}
 
 function getArtifacts(folder) {
   const { scanArtifacts } = require('./base');
@@ -941,38 +962,45 @@ function getArtifacts(folder) {
   }) : [];
 
   // Add brain artifacts (task.md, implementation_plan.md, walkthrough.md) per session
-  if (fs.existsSync(ANTIGRAVITY_BRAIN_DIR)) {
-    try {
-      const sessions = fs.readdirSync(ANTIGRAVITY_BRAIN_DIR);
-      const brainFileNames = ['task.md', 'implementation_plan.md', 'walkthrough.md'];
-      for (const sessionId of sessions) {
-        const sessionDir = path.join(ANTIGRAVITY_BRAIN_DIR, sessionId);
+  if (!folder || !fs.existsSync(ANTIGRAVITY_BRAIN_DIR)) return artifacts;
+
+  const sessionMap = getSessionFolderMap();
+  const normalizedFolder = normalizePath(folder);
+
+  try {
+    const sessions = fs.readdirSync(ANTIGRAVITY_BRAIN_DIR);
+    const brainFileNames = ['task.md', 'implementation_plan.md', 'walkthrough.md'];
+    for (const sessionId of sessions) {
+      // Only include sessions that belong to this project folder
+      const sessionFolder = normalizePath(sessionMap.get(sessionId));
+      if (!sessionFolder || sessionFolder !== normalizedFolder) continue;
+
+      const sessionDir = path.join(ANTIGRAVITY_BRAIN_DIR, sessionId);
+      try {
+        if (!fs.statSync(sessionDir).isDirectory()) continue;
+      } catch { continue; }
+      for (const fileName of brainFileNames) {
+        const filePath = path.join(sessionDir, fileName);
+        if (!fs.existsSync(filePath)) continue;
         try {
-          if (!fs.statSync(sessionDir).isDirectory()) continue;
-        } catch { continue; }
-        for (const fileName of brainFileNames) {
-          const filePath = path.join(sessionDir, fileName);
-          if (!fs.existsSync(filePath)) continue;
-          try {
-            const stat = fs.statSync(filePath);
-            const content = fs.readFileSync(filePath, 'utf-8');
-            if (!content.trim()) continue;
-            const lines = content.split('\n').length;
-            artifacts.push({
-              name: fileName,
-              path: filePath,
-              relativePath: `brain/${sessionId.slice(0, 8)}/${fileName}`,
-              size: stat.size,
-              lines,
-              modifiedAt: stat.mtimeMs,
-              editor: 'antigravity',
-              editorLabel: 'Antigravity',
-            });
-          } catch { /* skip unreadable */ }
-        }
+          const stat = fs.statSync(filePath);
+          const content = fs.readFileSync(filePath, 'utf-8');
+          if (!content.trim()) continue;
+          const lines = content.split('\n').length;
+          artifacts.push({
+            name: fileName,
+            path: filePath,
+            relativePath: `brain/${sessionId.slice(0, 8)}/${fileName}`,
+            size: stat.size,
+            lines,
+            modifiedAt: stat.mtimeMs,
+            editor: 'antigravity',
+            editorLabel: 'Antigravity',
+          });
+        } catch { /* skip unreadable */ }
       }
-    } catch { /* skip if brain dir unreadable */ }
-  }
+    }
+  } catch { /* skip if brain dir unreadable */ }
 
   return artifacts;
 }

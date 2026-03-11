@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Settings as SettingsIcon, EyeOff, Eye, FolderOpen, Search, ShieldCheck, ShieldOff } from 'lucide-react'
+import { Settings as SettingsIcon, EyeOff, Eye, FolderOpen, Search, ShieldCheck, ShieldOff, AlertTriangle, X } from 'lucide-react'
 import { fetchConfig, updateConfig, fetchAllProjects } from '../lib/api'
 import { editorLabel, formatNumber, formatDate } from '../lib/constants'
 import EditorIcon from '../components/EditorIcon'
@@ -13,6 +13,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
+  const [showConfirm, setShowConfirm] = useState(false)
 
   useEffect(() => {
     Promise.all([fetchConfig(), fetchAllProjects()]).then(([cfg, projs]) => {
@@ -54,6 +55,7 @@ export default function Settings() {
     const newConfig = await updateConfig({ allowSubscriptionAccess: !subscriptionAccess })
     setConfig(newConfig)
     setSaving(false)
+    setShowConfirm(false)
   }
 
   return (
@@ -67,7 +69,7 @@ export default function Settings() {
             subscription access
           </SectionTitle>
           <button
-            onClick={toggleSubscriptionAccess}
+            onClick={() => setShowConfirm(true)}
             disabled={saving}
             className="text-[11px] px-2 py-0.5 rounded transition"
             style={{
@@ -121,6 +123,70 @@ export default function Settings() {
         {sorted.length === 0 && (
           <div className="text-center py-6 text-[12px]" style={{ color: 'var(--c-text3)' }}>no projects match filter</div>
         )}
+      </div>
+      {showConfirm && (
+        <ConfirmModal
+          enabling={!subscriptionAccess}
+          saving={saving}
+          onConfirm={toggleSubscriptionAccess}
+          onCancel={() => setShowConfirm(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+function ConfirmModal({ enabling, saving, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onCancel}>
+      <div className="card w-[420px] mx-4" onClick={e => e.stopPropagation()} style={{ background: 'var(--c-bg2)', border: '1px solid var(--c-border)' }}>
+        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--c-border)' }}>
+          <div className="flex items-center gap-2 text-[13px] font-medium" style={{ color: 'var(--c-white)' }}>
+            <AlertTriangle size={14} style={{ color: enabling ? '#fbbf24' : '#ef4444' }} />
+            {enabling ? 'Enable' : 'Disable'} Subscription Access
+          </div>
+          <button onClick={onCancel} className="p-1 rounded hover:bg-[var(--c-bg3)]" style={{ color: 'var(--c-text3)' }}>
+            <X size={14} />
+          </button>
+        </div>
+        <div className="px-4 py-3 text-[11px] space-y-2" style={{ color: 'var(--c-text2)' }}>
+          {enabling ? (
+            <>
+              <p>This will allow Agentlytics to read locally stored auth tokens from:</p>
+              <ul className="space-y-1 pl-3" style={{ color: 'var(--c-text3)' }}>
+                <li>Claude Code &ndash; macOS Keychain / Linux secret-tool</li>
+                <li>Cursor &ndash; local SQLite (state.vscdb)</li>
+                <li>Copilot / VS Code &ndash; ~/.config/github-copilot/apps.json</li>
+                <li>Codex &ndash; local auth.json (JWT decode only)</li>
+                <li>Windsurf &ndash; local SQLite (state.vscdb)</li>
+              </ul>
+              <p style={{ color: 'var(--c-text2)' }}>Tokens are kept <strong>in-memory only</strong> and never sent to any third-party service.</p>
+            </>
+          ) : (
+            <p>This will stop Agentlytics from reading any local auth tokens. Subscription and plan details will no longer be collected.</p>
+          )}
+        </div>
+        <div className="flex justify-end gap-2 px-4 py-3" style={{ borderTop: '1px solid var(--c-border)' }}>
+          <button
+            onClick={onCancel}
+            className="text-[11px] px-3 py-1 rounded transition"
+            style={{ color: 'var(--c-text3)', border: '1px solid var(--c-border)' }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={saving}
+            className="text-[11px] px-3 py-1 rounded transition font-medium"
+            style={{
+              background: enabling ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
+              color: enabling ? '#22c55e' : '#ef4444',
+              border: `1px solid ${enabling ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`,
+            }}
+          >
+            {saving ? 'Saving...' : enabling ? 'Yes, enable' : 'Yes, disable'}
+          </button>
+        </div>
       </div>
     </div>
   )

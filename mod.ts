@@ -854,7 +854,7 @@ Lightweight CLI analytics for your AI coding agents.
 
 ${bold("Usage:")}
   deno run --allow-read --allow-env mod.ts [options]
-  deno run --allow-read --allow-env https://raw.githubusercontent.com/f/agentlytics/main/mod.ts
+  deno run --allow-read --allow-env https://raw.githubusercontent.com/f/agentlytics/master/mod.ts
 
 ${bold("Options:")}
   --json      Output results as JSON
